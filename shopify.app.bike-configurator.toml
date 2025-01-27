@@ -1,0 +1,24 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "8d2164ec0044dca76e985f9be29546d8"
+application_url = "https://shopify.dev/apps/default-app-home"
+embedded = true
+name = "bike-configurator"
+handle = "bike-configurator-2"
+
+[build]
+include_config_on_deploy = true
+dev_store_url = "merfrand-test.myshopify.com"
+
+[webhooks]
+api_version = "2025-01"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = ""
+
+[auth]
+redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+
+[pos]
+embedded = false

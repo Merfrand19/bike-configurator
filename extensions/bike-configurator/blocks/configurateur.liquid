@@ -1,0 +1,245 @@
+<div class="merfrand-configurateur-section">
+  <button 
+    id="openPageButton" 
+    {% if block.settings.use_shopify_addToCart %} 
+      class="btn btn--full add-to-cart" style="width:100%" 
+    {% else %} 
+      class="merfrandbutton" 
+      style="background-color: {{ block.settings.btn_back_color }};
+             border: {{ block.settings.btn_back_color }};
+             font-size: {{ block.settings.btn_text_font_size }};
+             {% if block.settings.btn_is_bold %} font-weight: bold; {% endif %}
+      " 
+    {% endif %}>
+    {{ block.settings.texte_bouton }}
+  </button>
+</div>
+
+
+
+<div id="fullPageOverlay" class="hidden-overlay">
+  <button id="closePageButton" class="close-button">&times;</button>
+  <div class="overlay-content">
+    <iframe crossorigin id="monIframe" src="https://frontend-configurateur-emws.vercel.app/" width="800" height="600" style="border:1px solid white; width: 100vw; height: 100vh; overflow: auto;">
+    </iframe>
+  </div>
+</div>
+
+<style>
+  /* Bouton principal */
+.merfrandbutton {
+  width: 100%;
+  padding: 10px 20px;
+  font-size: 16px;
+  color: white;
+  border: none;
+  border-radius: 5rem;
+  cursor: pointer;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.merfrandbutton:hover {
+  background-color: #005bb5;
+  transform: scale(1.05);
+}
+
+
+
+/* Overlay (page complète) */
+.hidden-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50000000000;
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.visible-overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Bouton pour fermer l'overlay */
+.close-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 30px;
+  color: black;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.overlay-content {
+  text-align: center;
+}
+
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const body = document.querySelector('body');
+    const overlay = document.getElementById('fullPageOverlay');
+
+    // Ajouter l'overlay au body
+    body.appendChild(overlay);
+
+    const openButton = document.getElementById('openPageButton');
+    const closeButton = document.getElementById('closePageButton');
+
+    // Montrer l'overlay
+    openButton.addEventListener('click', function () {
+      overlay.classList.add('visible-overlay');
+    });
+
+    // Cacher l'overlay
+    closeButton.addEventListener('click', function () {
+      overlay.classList.remove('visible-overlay');
+    });
+
+    // Écouter les messages venant de l'iframe
+    window.addEventListener('message', async function (event) {
+      if (event.origin !== 'https://frontend-configurateur-emws.vercel.app') {
+        console.warn('Message non sécurisé ignoré.');
+        return;
+      }
+
+      console.log('Données JSON reçues de l\'iframe :', event.data);
+      const data = event.data;
+
+      // Préparer les produits à ajouter au panier
+      const itemsToAdd = [];
+
+      // Ajouter les produits sélectionnés
+      if (data.selectedProducts && data.selectedProducts.length > 0) {
+        data.selectedProducts.forEach(productId => {
+          itemsToAdd.push({
+            id: productId,
+            quantity: 1
+          });
+        });
+      } else {
+        console.log("Aucun produit sélectionné");
+      }
+
+      // Ajouter la matière et finition
+      const matiereValue = Number(data.matiere.split(' - ')[1]);
+        const finitionValue = Number(data.finition.split(' - ')[1]);
+
+        if (matiereValue !== 0) {
+          itemsToAdd.push({ id: matiereValue, quantity: 1 });
+        }
+
+        if (finitionValue !== 0) {
+          itemsToAdd.push({ id: finitionValue, quantity: 1 });
+        }
+
+        itemsToAdd.push({
+          id: data.couleur,
+          quantity: 1,
+          properties: {
+            marque: data.marque,
+            modele: data.modele,
+            annee: data.annee,
+            pseudo: data.pseudo,
+            numero: data.numero,
+            plaquePhare: data.plaquePhare,
+            gardeBoue: data.gardeBoue,
+            matiere: data.matiere.split(' - ')[0],
+            finition: data.finition.split(' - ')[0]
+          }
+        });
+
+      try {
+        // Envoyer la requête d'ajout au panier
+        const response = await fetch('/cart/add.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: itemsToAdd })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Erreur serveur Shopify :', errorText);
+          alert('Erreur lors de l\'ajout au panier : ' + errorText);
+          return;
+        }
+
+        const cartData = await response.json();
+
+        window.location.href = '/checkout';
+
+        // Fermer l'overlay après succès
+        overlay.classList.remove('visible-overlay');
+        // alert('Produits ajoutés au panier avec succès !');
+      } catch (error) {
+        console.error('Erreur réseau ou autre lors de l\'ajout au panier :', error);
+        alert('Une erreur est survenue. Veuillez réessayer.');
+      }
+    });
+  });
+</script>
+
+
+{% schema %}
+  {
+    "name": "Bouton configurateur",
+    "target": "section",
+    "enabled_on": {
+      "templates": ["product"]
+    },
+    "settings": [
+      {
+        "type": "text",
+        "id": "texte_bouton",
+        "label": "Texte sur le bouton",
+        "default": "Start customization"
+      },
+      {
+        "type": "checkbox",
+        "id": "use_shopify_addToCart",
+        "label": "Designer le bouton comme le texte Ajouter au panier",
+        "default": true
+      },
+      {
+        "type": "color",
+        "id": "btn_back_color",
+        "label": "Sélectionner la couleur de l'arrière-plan",
+        "default": "#ffffff"
+      },
+      {
+        "type": "color",
+        "id": "btn_text_color",
+        "label": "Sélectionner la couleur du texte",
+        "default": "#000000"
+      },
+      {
+        "type": "range",
+        "id": "btn_text_font_size",
+        "label": "Taille de la police",
+        "default": 16,
+        "min": 10,
+        "max": 100,
+        "step": 1
+      },
+      {
+        "type": "checkbox",
+        "id": "btn_is_bold",
+        "label": "Mettre le texte en gras",
+        "default": true
+      }
+    ]
+  }
+  {% endschema %}
+  
